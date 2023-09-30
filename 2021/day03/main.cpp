@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <array>
+#include <set>
 
 constexpr int number_of_bits = 12;
 
@@ -21,6 +22,63 @@ bool get_file_contents(const std::string& file_name, std::vector<unsigned long l
     }
 
     return true;
+}
+
+void remove_from_set(std::set<unsigned long long>& current_candidates, const std::set<unsigned long long>& items_to_remove) {
+    for (const auto item_to_remove: items_to_remove) {
+        current_candidates.erase(item_to_remove);
+    }
+}
+
+unsigned long long get_life_support_rating_values(const std::vector<unsigned long long>& file_contents, bool is_oxygen_generator) {
+
+    int current_digit = number_of_bits - 1;
+
+    std::set<unsigned long long> current_zeros;
+    std::set<unsigned long long> current_ones;
+
+    std::set<unsigned long long> current_candidates(
+            std::make_move_iterator(file_contents.begin()),
+            std::make_move_iterator(file_contents.end())
+            );
+
+    while (current_candidates.size() > 1 && current_digit >= 0) {
+        current_zeros.clear();
+        current_ones.clear();
+
+        for (const auto current_candidate: current_candidates) {
+            unsigned long long mask = 1ULL << current_digit;
+            if ((current_candidate & mask) == 0) {
+                current_zeros.emplace(current_candidate);
+            } else {
+                current_ones.emplace(current_candidate);
+            }
+        }
+
+        if (is_oxygen_generator) {
+            if (current_zeros.size() > current_ones.size()) {
+                remove_from_set(current_candidates, current_ones);
+            } else {
+                remove_from_set(current_candidates, current_zeros);
+            }
+        } else {
+            if (current_zeros.size() > current_ones.size()) {
+                remove_from_set(current_candidates, current_zeros);
+            } else {
+                remove_from_set(current_candidates, current_ones);
+            }
+        }
+
+
+
+        current_digit--;
+    }
+
+    if (current_candidates.size() == 1) {
+        return *current_candidates.begin();
+    } else {
+        return -1;
+    }
 }
 
 unsigned long long get_gamma_rate(const std::vector<unsigned long long>& file_contents) {
@@ -60,8 +118,8 @@ unsigned long long get_gamma_rate(const std::vector<unsigned long long>& file_co
 }
 
 unsigned long long get_epsilon_rate(unsigned long long gamma_rate) {
-    std::bitset<number_of_bits> mask("111111111111");
-    return gamma_rate ^ mask.to_ulong();
+    unsigned long long mask = (1 << number_of_bits) - 1;
+    return gamma_rate ^ mask;
 }
 
 int main() {
@@ -80,6 +138,15 @@ int main() {
     std::cout << "Epsilon Rate: " << epsilon_rate << std::endl;
 
     std::cout << "Power Consumption " << power_consumption << std::endl;
+
+    unsigned long long oxygen_generator = get_life_support_rating_values(file_contents, true);
+    unsigned long long c02_scrubber = get_life_support_rating_values(file_contents, false);
+    unsigned long long life_support_rating = oxygen_generator * c02_scrubber;
+
+    std::cout << "Oxygen Generator: " << oxygen_generator << std::endl;
+    std::cout << "C02 Scrubber: " << c02_scrubber << std::endl;
+
+    std::cout << "Life Support Rating: " << life_support_rating << std::endl;
 
     return 0;
 }
